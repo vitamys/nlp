@@ -18,6 +18,8 @@ from torch.optim import AdamW
 import pickle
 from transformers import AutoModelForSequenceClassification
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
+
+import nltk
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
@@ -211,8 +213,33 @@ plt.text(
 
 plt.show()
 
+
 # %% [markdown]
 # the average length is 428 tokens and the median is 369, so truncating to 512 should be fine. however, in this case 30% of the entries will be truncated
+# split rows that have more than 512 tokens into multiple rows to not lose data
+def split_text(text, max_length):
+    # Tokenize the text into words (not BERT tokens)
+    words = text.split()
+
+    # Split words into chunks of max_length
+    chunks = [
+        " ".join(words[i : i + max_length]) for i in range(0, len(words), max_length)
+    ]
+    return chunks
+
+
+# Set max_length based on your tokenizer's max token length
+# For BERT, often use a smaller length to account for special tokens like [CLS] and [SEP]
+max_length = 512 - 2  # accounting for [CLS] and [SEP]
+
+new_rows = []
+for _, row in dataset_p.iterrows():
+    text_chunks = split_text(row["tokens"], max_length)
+    for chunk in text_chunks:
+        new_rows.append({"tokens": chunk, "label": row["label"]})
+
+# Create a new DataFrame
+split_dataset_p = pd.DataFrame(new_rows)
 
 
 # %%
@@ -325,7 +352,7 @@ def evaluate(model, dataloader):
 
     data_to_save = {"true_labels": true_labels, "predictions": predictions}
 
-    with open("model_evaluation_data_project.pkl", "wb") as file:
+    with open("model_evaluation_data_project_split_rows.pkl", "wb") as file:
         pickle.dump(data_to_save, file)
 
     accuracy = accuracy_score(true_labels, predictions)
