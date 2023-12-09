@@ -74,40 +74,41 @@ def plot_classes_distribution(labels, num_samples_per_class):
 # Load the dataset
 dataset = load_dataset("argilla/medical-domain")
 
+def basic_statistics(dataset):
+    num_samples = len(dataset['train']) 
+    
+    # Number of classes
+    labels = []
+    for sample in dataset['train']['prediction']:
+        label = sample[0]['label']
+        if label not in labels:
+            labels.append(label)
+    
+    num_classes = len(labels)
+    num_samples_per_class=[]
+    for label in labels:
+        num_samples_per_class.append(len(dataset['train'].filter(lambda example: example['prediction'][0]['label'] == label)))
+
+    return num_samples, labels, num_classes, num_samples_per_class
+
+num_samples, labels, num_classes, num_samples_per_class = basic_statistics(dataset)
 # %% [markdown]
 # as a recap from exericse one, let's have a look again at the classes
 
 # %%
-# Calculate basic statistics
-# Number of samples, number of classes, number of samples per class
-# Number of samples
-num_samples = len(dataset["train"])
-print("Number of samples: ", num_samples)
+# Calculate basic statistics 
+print("Number of samples: ", num_samples) 
+print("Number of classes: ", num_classes) 
+plot_classes_distribution(labels, num_samples_per_class)
 
-# Number of classes
-labels = []
-for sample in dataset["train"]["prediction"]:
-    label = sample[0]["label"]
-    if label not in labels:
-        labels.append(label)
+#Filter classes which are too small
+min_num_samples=30
+filtered_classes = np.array(labels)[np.array(num_samples_per_class)>min_num_samples]
+dataset['train'] = dataset['train'].filter(lambda sample: sample['prediction'][0]['label'] in filtered_classes)
 
-num_classes = len(labels)
-print("Number of classes: ", num_classes)
-
-# %%
-# Number of samples per class
-num_samples_per_class = []
-for label in labels:
-    num_samples_per_class.append(
-        len(
-            dataset["train"].filter(
-                lambda example: example["prediction"][0]["label"] == label
-            )
-        )
-    )
-
-# %%
-# plot the distribution of the classes
+num_samples, labels, num_classes, num_samples_per_class = basic_statistics(dataset)
+print("Number of samples: ", num_samples) 
+print("Number of classes: ", num_classes) 
 plot_classes_distribution(labels, num_samples_per_class)
 
 # %% [markdown]
@@ -389,6 +390,8 @@ for epoch in range(num_epochs):
         patience -= 1
     
     print(f"My remaining patience is {patience}.") 
+    print(f"Current f1 score is {f1}")
+    print(f"Current loss is {loss.cpu().item()}")
     if patience <= 0:
         print("My patience run out.") 
         break
