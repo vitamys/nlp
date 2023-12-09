@@ -401,7 +401,7 @@ print("Training finished with " + str(num_epochs) + " epochs")
             
 
 # %%
-model = torch.load("best_model.pt")
+model.load_state_dict(torch.load("best_model.pt", map_location=torch.device('cpu')))
 eval_metrics = evaluate(model, eval_dataloader)
 print(
     f"Validation Results - Accuracy: {eval_metrics['accuracy']:.3f}, Precision: {eval_metrics['precision']:.3f}, Recall: {eval_metrics['recall']:.3f}, F1: {eval_metrics['f1']:.3f}"
