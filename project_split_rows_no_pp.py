@@ -343,16 +343,16 @@ def evaluate(model, dataloader):
 # %%
 model = AutoModelForSequenceClassification.from_pretrained(
     "medicalai/ClinicalBERT",
-    num_labels=40,
+    num_labels=num_classes,
 )
 model.to(device)
 
 # %%
 num_epochs = 100
-max_patience=5
+max_patience=10
 patience = max_patience
 best_f1 = 0
-optimizer = AdamW(model.parameters(), lr=5e-5)
+optimizer = AdamW(model.parameters(), lr=5e-6)
 it = 0
 # Create tensorboard
 summary = SummaryWriter("./", purge_step=0)
@@ -386,7 +386,7 @@ for epoch in range(num_epochs):
     for key in eval_metrics:
         summary.add_scalar(key, eval_metrics[key], epoch +1)
         
-    f1 = eval_metrics['f1_weighted']            
+    f1 = eval_metrics['f1_micro']            
     
     if best_f1 < f1:
         patience = max_patience
