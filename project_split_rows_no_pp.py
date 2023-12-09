@@ -327,11 +327,17 @@ def evaluate(model, dataloader):
         pickle.dump(data_to_save, file)
 
     accuracy = accuracy_score(true_labels, predictions)
-    precision, recall, f1, _ = precision_recall_fscore_support(
+    precision_macro, recall_macro, f1_macro, _ = precision_recall_fscore_support(
         true_labels, predictions, average="macro"
     )
+    precision_micro, recall_micro, f1_micro, _ = precision_recall_fscore_support(
+        true_labels, predictions, average="micro"
+    )
+    precision_weighted, recall_weighted, f1_weighted, _ = precision_recall_fscore_support(
+        true_labels, predictions, average="weighted"
+    )
 
-    return {"accuracy": accuracy, "precision": precision, "recall": recall, "f1": f1}
+    return {"accuracy": accuracy, "precision_macro": precision_macro, "recall_macro": recall_macro, "f1_macro": f1_macro, "precision_micro": precision_micro, "recall_micro": recall_micro, "f1_micro": f1_micro, "precision_weighted": precision_weighted, "recall_weighted": recall_weighted, "f1_weighted": f1_weighted}
 
 
 # %%
@@ -380,7 +386,7 @@ for epoch in range(num_epochs):
     for key in eval_metrics:
         summary.add_scalar(key, eval_metrics[key], epoch +1)
         
-    f1 = eval_metrics['f1']            
+    f1 = eval_metrics['f1_weighted']            
     
     if best_f1 < f1:
         patience = max_patience
@@ -404,6 +410,6 @@ print("Training finished with " + str(num_epochs) + " epochs")
 model.load_state_dict(torch.load("best_model.pt", map_location=torch.device('cpu')))
 eval_metrics = evaluate(model, eval_dataloader)
 print(
-    f"Validation Results - Accuracy: {eval_metrics['accuracy']:.3f}, Precision: {eval_metrics['precision']:.3f}, Recall: {eval_metrics['recall']:.3f}, F1: {eval_metrics['f1']:.3f}"
+    f"Validation Results - Accuracy: {eval_metrics['accuracy']:.3f}, Precision: {eval_metrics['precision_weighted']:.3f}, Recall: {eval_metrics['recall_weighted']:.3f}, F1: {eval_metrics['f1_weighted']:.3f}"
 )
 print("Finish Training of model with split rows and no pp")
