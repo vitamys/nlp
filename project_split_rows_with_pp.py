@@ -259,7 +259,7 @@ def tokenize(sent):
 
 
 # %%
-train_df, eval_df = train_test_split(dataset_p, test_size=0.2)
+train_df, eval_df = train_test_split(dataset_p, test_size=0.2, stratify=torch.tensor(split_dataset_p["label"].values))
 
 train_encodings = train_df["tokens"].apply(lambda x: tokenize(x))
 eval_encodings = eval_df["tokens"].apply(lambda x: tokenize(x))
@@ -284,7 +284,7 @@ train_dataset = TensorDataset(train_inputs, train_masks, train_labels)
 eval_dataset = TensorDataset(eval_inputs, eval_masks, eval_labels)
 
 weight_samples=1/(torch.index_select(torch.tensor(num_samples_per_class),0,train_labels)*num_classes)
-train_sampler = WeightedRandomSampler(weight_samples, num_samples=train_labels.shape[0])
+train_sampler = WeightedRandomSampler(weight_samples, num_samples=train_labels.shape[0], replacement=False)
 train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=32)
 
 eval_sampler = SequentialSampler(eval_dataset)
