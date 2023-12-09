@@ -297,7 +297,6 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # %%
 def evaluate(model, dataloader):
-    model.eval()
 
     predictions, true_labels = [], []
 
@@ -376,6 +375,7 @@ for epoch in range(num_epochs):
         if (it % (epoch_length/8)) == 0:
             summary.add_scalar("training loss", loss.cpu().item(), it)  
     
+    model.eval()
     eval_metrics = evaluate(model, eval_dataloader)
     for key in eval_metrics:
         summary.add_scalar(key, eval_metrics[key], epoch +1)
