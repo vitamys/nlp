@@ -102,9 +102,9 @@ print("Number of classes: ", num_classes)
 plot_classes_distribution(labels, num_samples_per_class)
 
 #Filter classes which are too small
-min_num_samples=30
-filtered_classes = np.array(labels)[np.array(num_samples_per_class)>min_num_samples]
-dataset['train'] = dataset['train'].filter(lambda sample: sample['prediction'][0]['label'] in filtered_classes)
+#min_num_samples=30
+#filtered_classes = np.array(labels)[np.array(num_samples_per_class)>min_num_samples]
+#dataset['train'] = dataset['train'].filter(lambda sample: sample['prediction'][0]['label'] in filtered_classes)
 
 num_samples, labels, num_classes, num_samples_per_class = basic_statistics(dataset)
 print("Number of samples: ", num_samples) 

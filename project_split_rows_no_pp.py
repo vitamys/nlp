@@ -28,35 +28,6 @@ nltk.download("wordnet")
 
 
 # %%
-def process_text(text):
-    """Process the text: lowercasing, lemmatization, stopwords removal,
-    and punctuation removal
-    Input: text: the text to be processed"""
-    text = text.lower()
-    text = text.replace("\n", " ")
-    text = text.replace("\t", " ")
-    text = text.replace("\r", " ")
-    text = text.replace("  ", " ")
-
-    # Word tokenization
-    tokens = word_tokenize(text)
-
-    # Normalization (lowercasing and lemmatization)
-    lemmatizer = WordNetLemmatizer()
-    tokens = [lemmatizer.lemmatize(token) for token in tokens]
-
-    # Token filtering (stopwords removal)
-    stop_words = set(stopwords.words("english"))
-    tokens = [token for token in tokens if token not in stop_words]
-
-    # Remove punctuation tokens
-    tokens = [token for token in tokens if token.isalpha()]
-
-    # Join the tokens back into a string
-    text = " ".join(tokens)
-
-    return text
-
 
 # %%
 def plot_classes_distribution(labels, num_samples_per_class):
@@ -102,9 +73,9 @@ print("Number of classes: ", num_classes)
 plot_classes_distribution(labels, num_samples_per_class)
 
 #Filter classes which are too small
-min_num_samples=30
-filtered_classes = np.array(labels)[np.array(num_samples_per_class)>min_num_samples]
-dataset['train'] = dataset['train'].filter(lambda sample: sample['prediction'][0]['label'] in filtered_classes)
+#min_num_samples=30
+#filtered_classes = np.array(labels)[np.array(num_samples_per_class)>min_num_samples]
+#dataset['train'] = dataset['train'].filter(lambda sample: sample['prediction'][0]['label'] in filtered_classes)
 
 num_samples, labels, num_classes, num_samples_per_class = basic_statistics(dataset)
 print("Number of samples: ", num_samples) 
@@ -119,10 +90,8 @@ plot_classes_distribution(labels, num_samples_per_class)
 dataset_p = pd.DataFrame(columns=["tokens", "label"])
 for i in range(len(dataset["train"])):
     text = dataset["train"][i]["text"]
-    label = dataset["train"][i]["prediction"][0]["label"]
-    text_p = text
-    #text_p = process_text(text)
-    dataset_p.loc[i] = [text_p, label]
+    label = dataset["train"][i]["prediction"][0]["label"]  
+    dataset_p.loc[i] = [text, label]
 
 # %%
 dataset_p.head()
@@ -296,7 +265,7 @@ eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=32)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # %%
-def evaluate(model, dataloader):
+def evaluate(model, dataloader): 
 
     predictions, true_labels = [], []
 
@@ -323,7 +292,7 @@ def evaluate(model, dataloader):
 
     data_to_save = {"true_labels": true_labels, "predictions": predictions}
 
-    with open("model_evaluation_data_project_split_rows_without_pp.pkl", "wb") as file:
+    with open("model_evaluation_data_project_split_rows_with_pp.pkl", "wb") as file:
         pickle.dump(data_to_save, file)
 
     accuracy = accuracy_score(true_labels, predictions)
@@ -337,7 +306,7 @@ def evaluate(model, dataloader):
         true_labels, predictions, average="weighted"
     )
 
-    return {"accuracy": accuracy, "precision_macro": precision_macro, "recall_macro": recall_macro, "f1_macro": f1_macro, "precision_micro": precision_micro, "recall_micro": recall_micro, "f1_micro": f1_micro, "precision_weighted": precision_weighted, "recall_weighted": recall_weighted, "f1_weighted": f1_weighted}
+    return {"accuracy": accuracy, "precision_macro": precision_macro, "recall_macro": recall_macro, "f1_macro": f1_macro, "precision_micro": precision_micro, "recall_micro": recall_micro, "f1_micro": f1_micro, "precision_weighted": precision_weighted, "recall_weighted": recall_weighted, "f1_weighted": f1_weighted} 
 
 
 # %%
@@ -348,11 +317,11 @@ model = AutoModelForSequenceClassification.from_pretrained(
 model.to(device)
 
 # %%
-num_epochs = 100
-max_patience=10
+num_epochs = 200
+max_patience=70
 patience = max_patience
 best_f1 = 0
-optimizer = AdamW(model.parameters(), lr=5e-6)
+optimizer = AdamW(model.parameters(), lr=5e-7)
 it = 0
 # Create tensorboard
 summary = SummaryWriter("./", purge_step=0)
@@ -376,7 +345,7 @@ for epoch in range(num_epochs):
         outputs = model(batch_inputs, attention_mask=batch_masks, labels=batch_labels)
         loss = outputs.loss
         loss.backward()
-        optimizer.step
+        optimizer.step()
 
         if (it % (epoch_length/8)) == 0:
             summary.add_scalar("training loss", loss.cpu().item(), it)  
@@ -396,14 +365,14 @@ for epoch in range(num_epochs):
     else:
         patience -= 1
     
-    print(f"My remaining patience is {patience}.")
+    print(f"My remaining patience is {patience}.") 
     print(f"Current f1 score is {f1}")
-    print(f"Current loss is {loss.cpu().item()}") 
+    print(f"Current loss is {loss.cpu().item()}")
     if patience <= 0:
         print("My patience run out.") 
         break
         
-print("Training finished with " + str(num_epochs) + " epochs")  
+print("Training finished with " + str(num_epochs) + " epochs")   
             
 
 # %%
@@ -412,4 +381,4 @@ eval_metrics = evaluate(model, eval_dataloader)
 print(
     f"Validation Results - Accuracy: {eval_metrics['accuracy']:.3f}, Precision: {eval_metrics['precision_weighted']:.3f}, Recall: {eval_metrics['recall_weighted']:.3f}, F1: {eval_metrics['f1_weighted']:.3f}"
 )
-print("Finish Training of model with split rows and no pp")
+print("Finish Training of model with split rows and pp")
