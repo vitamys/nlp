@@ -73,9 +73,9 @@ print("Number of classes: ", num_classes)
 plot_classes_distribution(labels, num_samples_per_class)
 
 #Filter classes which are too small
-#min_num_samples=30
-#filtered_classes = np.array(labels)[np.array(num_samples_per_class)>min_num_samples]
-#dataset['train'] = dataset['train'].filter(lambda sample: sample['prediction'][0]['label'] in filtered_classes)
+min_num_samples=0
+filtered_classes = np.array(labels)[np.array(num_samples_per_class)>min_num_samples]
+dataset['train'] = dataset['train'].filter(lambda sample: sample['prediction'][0]['label'] in filtered_classes)
 
 num_samples, labels, num_classes, num_samples_per_class = basic_statistics(dataset)
 print("Number of samples: ", num_samples) 
@@ -255,7 +255,7 @@ train_dataset = TensorDataset(train_inputs, train_masks, train_labels)
 eval_dataset = TensorDataset(eval_inputs, eval_masks, eval_labels)
 
 weight_samples=1/(torch.index_select(torch.tensor(num_samples_per_class),0,train_labels)*num_classes)
-train_sampler = WeightedRandomSampler(weight_samples, num_samples=train_labels.shape[0], replacement=False)
+train_sampler = WeightedRandomSampler(weight_samples, num_samples=train_labels.shape[0], replacement=True)
 train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=32)
 
 eval_sampler = SequentialSampler(eval_dataset)

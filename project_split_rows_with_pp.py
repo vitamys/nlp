@@ -42,8 +42,8 @@ def process_text(text):
     tokens = word_tokenize(text)
 
     # Normalization (lowercasing and lemmatization)
-    lemmatizer = WordNetLemmatizer()
-    tokens = [lemmatizer.lemmatize(token) for token in tokens]
+    #lemmatizer = WordNetLemmatizer()
+    #tokens = [lemmatizer.lemmatize(token) for token in tokens]
 
     # Token filtering (stopwords removal)
     stop_words = set(stopwords.words("english"))
@@ -285,7 +285,7 @@ train_dataset = TensorDataset(train_inputs, train_masks, train_labels)
 eval_dataset = TensorDataset(eval_inputs, eval_masks, eval_labels)
 
 weight_samples=1/(torch.index_select(torch.tensor(num_samples_per_class),0,train_labels)*num_classes)
-train_sampler = WeightedRandomSampler(weight_samples, num_samples=train_labels.shape[0], replacement=False)
+train_sampler = WeightedRandomSampler(weight_samples, num_samples=train_labels.shape[0], replacement=True)
 train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=32)
 
 eval_sampler = SequentialSampler(eval_dataset)
@@ -351,7 +351,7 @@ num_epochs = 100
 max_patience=10
 patience = max_patience
 best_f1 = 0
-optimizer = AdamW(model.parameters(), lr=5e-6)
+optimizer = AdamW(model.parameters(), lr=5e-7)
 it = 0
 # Create tensorboard
 summary = SummaryWriter("./", purge_step=0)
