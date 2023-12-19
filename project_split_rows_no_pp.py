@@ -190,9 +190,13 @@ def split_text(text, max_length):
     # Tokenize the text into words (not BERT tokens)
     words = text.split()
 
-    # Split words into chunks of max_length
+    #num of chunks
+    num_of_chunks = math.ceil(len(words)/max_length)
+    chunk_length = len(words) // num_of_chunks
+    
+    # Split words into chunks of chunk_length
     chunks = [
-        " ".join(words[i : i + max_length]) for i in range(0, len(words), max_length)
+        " ".join(words[i : i + max_length]) for i in range(0, len(words), chunk_length)
     ]
     return chunks
 
@@ -321,7 +325,7 @@ num_epochs = 200
 max_patience=70
 patience = max_patience
 best_f1 = 0
-optimizer = AdamW(model.parameters(), lr=5e-7)
+optimizer = AdamW(model.parameters(), lr=5e-6)
 it = 0
 # Create tensorboard
 summary = SummaryWriter("./", purge_step=0)
