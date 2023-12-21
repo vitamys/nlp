@@ -174,6 +174,7 @@ print("Maximum number of tokens in a single row:", max_token_length)
 # the max nb of tokens that BERT can take is 512, so this entry will be truncated to 512 tokens
 
 
+
 # %%
 def count_tokens(text):
     return len(tokenizer.encode(text))
@@ -230,23 +231,24 @@ def split_text(text, max_length):
     ]
     return chunks
 
+train_df, eval_df = train_test_split(dataset_p, test_size=0.2, stratify=torch.tensor(dataset_p["label"].values))
+
 max_length = 512 - 2  # accounting for [CLS] and [SEP]
 
-new_rows = []
-for _, row in dataset_p.iterrows():
+new_rows_train = []
+for _, row in train_df.iterrows():
     text_chunks = split_text(row["tokens"], max_length)
     for chunk in text_chunks:
-        new_rows.append({"tokens": chunk, "label": row["label"]})
+        new_rows_train.append({"tokens": chunk, "label": row["label"]})
+train_df = pd.DataFrame(new_rows_train)
 
-# Create a new DataFrame
-split_dataset_p = pd.DataFrame(new_rows)
-token_lengths = split_dataset_p["tokens"].apply(count_tokens)
-max_token_length = max(token_lengths)
-print("Maximum number of tokens in a single row:", max_token_length)
+new_rows_eval = []
+for _, row in eval_df.iterrows():
+    text_chunks = split_text(row["tokens"], max_length)
+    for chunk in text_chunks:
+        new_rows_eval.append({"tokens": chunk, "label": row["label"]})
+eval_df = pd.DataFrame(new_rows_eval)
 
-dataset_p = split_dataset_p
-
-# %%
 def tokenize(sent):
     encoded = tokenizer.encode_plus(
         text=sent,
@@ -261,16 +263,16 @@ def tokenize(sent):
         "input_ids": encoded["input_ids"],
         "attention_mask": encoded["attention_mask"],
     }
-
-
-# %%
-train_df, eval_df = train_test_split(dataset_p, test_size=0.2, stratify=torch.tensor(split_dataset_p["label"].values))
-
-train_encodings = train_df["tokens"].apply(lambda x: tokenize(x))
-eval_encodings = eval_df["tokens"].apply(lambda x: tokenize(x))
-
+    
+    
 train_labels = torch.tensor(train_df["label"].values)
 eval_labels = torch.tensor(eval_df["label"].values)
+#get a weight per sample based on the label: label_weight = 1/ (num_classes * num_samples_per_class[class_label])
+weight_samples=1/(torch.index_select(torch.tensor(num_samples_per_class),0,train_labels)*num_classes) 
+
+  
+train_encodings = train_df["tokens"].apply(lambda x: tokenize(x))
+eval_encodings = eval_df["tokens"].apply(lambda x: tokenize(x))
 
 train_inputs = torch.cat(
     train_encodings.apply(lambda x: x["input_ids"]).tolist(), dim=0
@@ -279,16 +281,16 @@ train_masks = torch.cat(
     train_encodings.apply(lambda x: x["attention_mask"]).tolist(), dim=0
 )
 
-eval_inputs = torch.cat(eval_encodings.apply(lambda x: x["input_ids"]).tolist(), dim=0)
+eval_inputs = torch.cat(
+    eval_encodings.apply(lambda x: x["input_ids"]).tolist(), dim=0
+)
 eval_masks = torch.cat(
     eval_encodings.apply(lambda x: x["attention_mask"]).tolist(), dim=0
 )
 
-# %%
 train_dataset = TensorDataset(train_inputs, train_masks, train_labels)
 eval_dataset = TensorDataset(eval_inputs, eval_masks, eval_labels)
 
-weight_samples=1/(torch.index_select(torch.tensor(num_samples_per_class),0,train_labels)*num_classes)
 train_sampler = WeightedRandomSampler(weight_samples, num_samples=train_labels.shape[0], replacement=True)
 train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=32)
 
