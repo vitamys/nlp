@@ -16,11 +16,21 @@ from tqdm import tqdm
 from torch.optim import AdamW
 import pickle
 from transformers import AutoModelForSequenceClassification
-from sklearn.metrics import accuracy_score, precision_recall_fscore_support
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support, confusion_matrix
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
-from torch.utils.tensorboard import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter 
+import math
+
+from sklearn.naive_bayes import MultinomialNB 
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.pipeline import Pipeline
+from sklearn.svm import SVC
+from sklearn.model_selection import GridSearchCV
+from sklearn.pipeline import make_pipeline
+
 
 nltk.download("punkt")
 nltk.download("stopwords")
@@ -231,7 +241,7 @@ def split_text(text, max_length):
     ]
     return chunks
 
-train_df, eval_df = train_test_split(dataset_p, test_size=0.2, stratify=torch.tensor(dataset_p["label"].values))
+train_df, eval_df = train_test_split(dataset_p, test_size=0.2, stratify=torch.tensor(dataset_p["label"].values), random_state=42)
 
 max_length = 512 - 2  # accounting for [CLS] and [SEP]
 
@@ -264,12 +274,107 @@ def tokenize(sent):
         "attention_mask": encoded["attention_mask"],
     }
     
-    
 train_labels = torch.tensor(train_df["label"].values)
 eval_labels = torch.tensor(eval_df["label"].values)
 #get a weight per sample based on the label: label_weight = 1/ (num_classes * num_samples_per_class[class_label])
 weight_samples=1/(torch.index_select(torch.tensor(num_samples_per_class),0,train_labels)*num_classes) 
 
+
+def evaluate(eval_labels, predictions): 
+    accuracy = accuracy_score(eval_labels, predictions)
+    precision_macro, recall_macro, f1_macro, _ = precision_recall_fscore_support(
+        eval_labels, predictions, average="macro"
+    )
+    precision_micro, recall_micro, f1_micro, _ = precision_recall_fscore_support(
+        eval_labels, predictions, average="micro"
+    )
+    precision_weighted, recall_weighted, f1_weighted, _ = precision_recall_fscore_support(
+        eval_labels, predictions, average="weighted"
+    )
+    
+    return {"accuracy": accuracy, "precision_macro": precision_macro, "recall_macro": recall_macro, "f1_macro": f1_macro, "precision_micro": precision_micro, "recall_micro": recall_micro, "f1_micro": f1_micro, "precision_weighted": precision_weighted, "recall_weighted": recall_weighted, "f1_weighted": f1_weighted}
+
+train_inputs=train_df["tokens"].values
+eval_inputs=eval_df["tokens"].values
+
+# Pipelining
+tfidf = TfidfVectorizer(ngram_range=(1,2))
+clf = MultinomialNB()
+nb_tfidf = make_pipeline(tfidf, clf) 
+
+parameters = { 
+        'multinomialnb__alpha': [0.001],
+        'tfidfvectorizer__min_df': [35]
+    }
+grid_search = GridSearchCV(nb_tfidf, parameters, scoring="f1_macro", n_jobs=-1)
+
+#No weighting possible
+grid_search.fit(train_inputs, train_labels)
+print("best params: " + str(grid_search.best_params_)) 
+predictions = grid_search.predict(eval_inputs)
+print("The Naive Bayes model has following scores: ")
+print(evaluate(eval_labels, predictions)) 
+
+with open('params_naive_bayes.txt', 'w') as f:
+    f.write(str(grid_search.best_params_))
+with open('scores_naive_bayes.txt', 'w') as f:
+    f.write(str(evaluate(eval_labels, predictions)))
+
+# Pipelining
+tfidf = TfidfVectorizer(ngram_range=(1,2))
+clf = RandomForestClassifier(class_weight="balanced")
+nb_tfidf = make_pipeline(tfidf, clf) 
+
+parameters = { 
+        'randomforestclassifier__n_estimators': [150],
+        'randomforestclassifier__max_depth': [20],
+        'randomforestclassifier__min_samples_split': [10],
+        'randomforestclassifier__max_features': ["sqrt"],
+        'tfidfvectorizer__min_df': [15]
+    }
+grid_search = GridSearchCV(nb_tfidf, parameters, scoring="f1_macro", n_jobs=-1)  
+
+grid_search.fit(train_inputs, train_labels)
+print("best params: " + str(grid_search.best_params_)) 
+predictions = grid_search.predict(eval_inputs)
+print("The Random Forest model has following scores: ")
+print(evaluate(eval_labels, predictions)) 
+
+with open('params_random_forest.txt', 'w') as f:
+    f.write(str(grid_search.best_params_))
+with open('scores_random_forest.txt', 'w') as f:
+    f.write(str(evaluate(eval_labels, predictions)))
+
+# Pipelining
+tfidf = TfidfVectorizer(ngram_range=(1,2))
+clf = SVC(class_weight="balanced")
+nb_tfidf = make_pipeline(tfidf, clf) 
+
+#parameters = { 
+#        'svc__gamma': ["scale", "auto", 1, 0.1, 0.01],
+#        'svc__C': [1.0, 0.1, 0.01, 0.001], 
+#        'svc__kernel': ["linear", "poly", "rbf"], 
+#        'tfidfvectorizer__min_df': [15,20,35,50]
+#    }
+parameters = { 
+        'svc__gamma': ["scale", "auto"],
+        'svc__C': [10.0, 1.0, 0.1, 0.01], 
+        'svc__kernel': ["poly", "rbf"], 
+        'tfidfvectorizer__min_df': [15,35]
+    }
+grid_search = GridSearchCV(nb_tfidf, parameters, scoring="f1_macro", n_jobs=-1) 
+
+grid_search.fit(train_inputs, train_labels)
+print("best params: " + str(grid_search.best_params_)) 
+predictions = grid_search.predict(eval_inputs)
+print("The SVC model has following scores: ")
+print(evaluate(eval_labels, predictions)) 
+
+
+with open('params_SVC.txt', 'w') as f:
+    f.write(str(grid_search.best_params_))
+with open('scores_SVC.txt', 'w') as f:
+    f.write(str(evaluate(eval_labels, predictions)))
   
 train_encodings = train_df["tokens"].apply(lambda x: tokenize(x))
 eval_encodings = eval_df["tokens"].apply(lambda x: tokenize(x))
@@ -362,15 +467,15 @@ it = 0
 # Create tensorboard
 summary = SummaryWriter("./", purge_step=0)
 
-epoch_length = len(train_dataloader)
+epoch_length = len(train_dataloader) 
 
 from tqdm import tqdm
 
-for epoch in range(num_epochs):
+for epoch in tqdm(range(num_epochs)):
     print(f"Starting epoch {epoch + 1}/{num_epochs}...")
     model.train()
 
-    for batch in tqdm(train_dataloader):
+    for batch in train_dataloader:
         it += 1
         batch_inputs, batch_masks, batch_labels = batch
         batch_inputs = batch_inputs.to(device)
